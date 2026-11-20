@@ -80,10 +80,12 @@ async function login(request, response) {
   catch { return reply(response, 400, { error: 'invalidRequest' }); }
   const { username, password } = credentials ?? {};
   if (typeof username !== 'string' || username.length > 50 ||
-      typeof password !== 'string' || password.length > 256 || (secureCookie && password.length < 12)) {
+      typeof password !== 'string' || password.length > 256 || password.length < 4) {
     return reply(response, 401, { error: 'unauthorized' });
   }
-  const account = accounts.get(username);
+  let currentAccounts;
+  try { currentAccounts = loadAccounts(); } catch { currentAccounts = accounts; }
+  const account = currentAccounts.get(username);
   const candidate = await derivePassword(password, account?.salt ?? unknownSalt, 64);
   if (!account || !timingSafeEqual(candidate, account.digest)) return reply(response, 401, { error: 'unauthorized' });
 

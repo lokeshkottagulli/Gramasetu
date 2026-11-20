@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import {
   BusFront, Ticket, MapPin, Wallet,
   ArrowRight, Menu, X, Route, Clock, Activity,
-  Info, Navigation, ShieldCheck, Volume2
+  Info, Navigation, ShieldCheck, Volume2, VolumeX
 } from 'lucide-react';
 import './style.css';
 import LiveTracker from './LiveTracker.jsx';
@@ -26,6 +26,7 @@ function App({ guide }) {
   const [language, setLanguage] = useState(initialLanguage);
   const [speechMessage, setSpeechMessage] = useState('');
   const [speechVoices, setSpeechVoices] = useState([]);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const pageAudio = useRef(null);
   const heroScene = useRef(null);
   const text = translations[language];
@@ -81,8 +82,14 @@ function App({ guide }) {
   const stopReading = () => {
     const audio = pageAudio.current;
     pageAudio.current = null;
-    if (audio) audio.pause();
-    window.speechSynthesis?.cancel();
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    setIsSpeaking(false);
     setSpeechMessage('');
   };
 
@@ -93,39 +100,68 @@ function App({ guide }) {
     window.scrollTo(0, 0);
   };
 
-  const readPageAloud = () => {
-    stopReading();
-    if (page === 'home' || (language === 'te' && !['checkout', 'admin'].includes(page))) {
-      const recording = page === 'home' ? 'gramasetu-home' : page;
-      const audio = new Audio(import.meta.env.BASE_URL + 'audio/' + language + '/' + recording + '.mp3');
-      pageAudio.current = audio;
-      const finish = message => {
-        if (pageAudio.current !== audio) return;
-        pageAudio.current = null;
-        setSpeechMessage(message);
-      };
-      audio.onended = () => finish('');
-      audio.onerror = () => finish(text.speechFailed);
-      audio.play().then(
-        () => { if (pageAudio.current === audio) setSpeechMessage(text.readingPage); },
-        () => finish(text.speechFailed),
-      );
+  const speakWithSynthesis = (speechText) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
+      setSpeechMessage(text.speechUnavailable);
+      setIsSpeaking(false);
       return;
     }
 
-    if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
-      setSpeechMessage(text.speechUnavailable);
+    try {
+      window.speechSynthesis.cancel();
+      if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+
+      const voices = window.speechSynthesis.getVoices();
+      const availableVoices = voices.length ? voices : speechVoices;
+      const voice = availableVoices.find(candidate => (
+        language === 'te' ? /^te/i : /^en[-_]in/i
+      ).test(candidate.lang)) || availableVoices.find(candidate => (
+        language === 'te' ? /^te/i : /^en/i
+      ).test(candidate.lang)) || availableVoices[0];
+
+      if (language === 'te' && !voice) {
+        setSpeechMessage(text.teluguVoiceUnavailable);
+        setIsSpeaking(false);
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(speechText);
+      utterance.lang = language === 'te' ? 'te-IN' : 'en-IN';
+      if (voice) utterance.voice = voice;
+      utterance.rate = 0.95;
+
+      utterance.onstart = () => {
+        setIsSpeaking(true);
+        setSpeechMessage(text.readingPage);
+      };
+
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        setSpeechMessage('');
+      };
+
+      utterance.onerror = (err) => {
+        console.warn('Speech error:', err);
+        setIsSpeaking(false);
+        setSpeechMessage(text.speechFailed);
+      };
+
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      setIsSpeaking(false);
+      setSpeechMessage(text.speechFailed);
+    }
+  };
+
+  const readPageAloud = () => {
+    if (isSpeaking) {
+      stopReading();
       return;
     }
-    const voices = window.speechSynthesis.getVoices();
-    const availableVoices = voices.length ? voices : speechVoices;
-    const voice = availableVoices.find(candidate => (
-      language === 'te' ? /^te(?:[-_]|$)/i : /^en[-_]in$/i
-    ).test(candidate.lang));
-    if (language === 'te' && !voice) {
-      setSpeechMessage(text.teluguVoiceUnavailable);
-      return;
-    }
+
+    stopReading();
+    setIsSpeaking(true);
+
     const fareText = checkoutCopy[language];
     const summaries = {
       home: text.homePageSpeech,
@@ -136,12 +172,52 @@ function App({ guide }) {
       checkout: [fareText.review, fareText.pay, fareText.check, fareText.ticket].join('. '),
       admin: [adminCopy[language].title, adminCopy[language].signIn].join('. '),
     };
-    const utterance = new SpeechSynthesisUtterance(summaries[page] || text.homePageSpeech);
-    utterance.lang = language === 'te' ? 'te-IN' : 'en-IN';
-    if (voice) utterance.voice = voice;
-    utterance.onerror = () => setSpeechMessage(text.speechFailed);
-    window.speechSynthesis.speak(utterance);
-    setSpeechMessage(text.readingPage);
+    const speechText = summaries[page] || text.homePageSpeech;
+
+    // Check if a pre-recorded audio file exists
+    const hasRecording = page === 'home' || (language === 'te' && ['routes', 'schedules', 'track', 'status'].includes(page));
+    if (hasRecording) {
+      const recording = page === 'home' ? 'gramasetu-home' : page;
+      const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
+      const audioUrl = `${baseUrl}/audio/${language}/${recording}.mp3`;
+      const audio = new Audio(audioUrl);
+      pageAudio.current = audio;
+
+      audio.onended = () => {
+        if (pageAudio.current === audio) {
+          pageAudio.current = null;
+          setIsSpeaking(false);
+          setSpeechMessage('');
+        }
+      };
+
+      audio.onerror = () => {
+        // Fall back to Web Speech Synthesis if audio file fails
+        if (pageAudio.current === audio) {
+          pageAudio.current = null;
+          speakWithSynthesis(speechText);
+        }
+      };
+
+      audio.play().then(
+        () => {
+          if (pageAudio.current === audio) {
+            setSpeechMessage(text.readingPage);
+          }
+        },
+        () => {
+          // Fall back to speech synthesis if play is rejected (e.g. autoplay block)
+          if (pageAudio.current === audio) {
+            pageAudio.current = null;
+            speakWithSynthesis(speechText);
+          }
+        }
+      );
+      return;
+    }
+
+    // Direct speech synthesis for all other pages
+    speakWithSynthesis(speechText);
   };
 
   const Nav = ({ p, icon: Icon, label }) => (
@@ -190,14 +266,26 @@ function App({ guide }) {
               <option value="en">{text.languageEn}</option>
               <option value="te">{text.languageTe}</option>
             </select>
-            <button type="button" className="listen-button" aria-label={text.readAloud} title={text.readAloud} onClick={readPageAloud}>
-              <Volume2 size={17} /><span>{text.listenLabel}</span>
+            <button
+              type="button"
+              className={`listen-button ${isSpeaking ? 'active' : ''}`}
+              aria-label={isSpeaking ? (language === 'te' ? 'వాయిస్ ఆపండి' : 'Stop voice') : text.readAloud}
+              title={isSpeaking ? (language === 'te' ? 'వాయిస్ ఆపండి' : 'Stop voice') : text.readAloud}
+              onClick={readPageAloud}
+            >
+              {isSpeaking ? <VolumeX size={17} /> : <Volume2 size={17} />}
+              <span>{isSpeaking ? (language === 'te' ? 'ఆపండి' : 'Stop') : text.listenLabel}</span>
             </button>
           </div>
           <button className="menu" onClick={() => setMobile(!mobile)}>{mobile ? <X /> : <Menu />}</button>
         </div>
       </header>
-      <div className="sr-only" aria-live="polite">{speechMessage}</div>
+      {speechMessage && (
+        <aside className={`speech-toast ${speechMessage === text.readingPage ? 'active' : 'info'}`} role="status">
+          <span>🔊 {speechMessage}</span>
+          <button type="button" onClick={stopReading} aria-label="Dismiss audio">✕</button>
+        </aside>
+      )}
 
       {/* ── HOME ── */}
       {page === 'home' && (
@@ -395,7 +483,7 @@ function App({ guide }) {
           </div>
 
           <div className="panel stops" style={{ marginTop: 25 }}>
-          <h3>{text.allStops} ({totalStops})</h3>
+            <h3>{text.allStops} ({totalStops})</h3>
             <div className="stop-list">
               {allStops.map((s, i) => (
                 <span key={s}><span className="dot">{i + 1}</span>{s}</span>
