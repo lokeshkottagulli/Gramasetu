@@ -115,17 +115,24 @@ export default function AdminDashboard({ routes, language }) {
     event.preventDefault();
     const form = event.currentTarget;
     const fields = new FormData(form);
-    form.elements.password.value = '';
+    const username = fields.get('username')?.trim();
+    const password = fields.get('password');
+    if (!username || !password) return;
+
     setBusy(true);
     setError('');
     try {
-      const response = await postSession('login', {
-        username: fields.get('username').trim(), password: fields.get('password'),
-      });
-      if (response.ok) setSignedIn(true);
-      else if (response.status === 401) setError('denied');
-      else if (response.status === 429) setError('tooManyAttempts');
-      else setError('unavailable');
+      const response = await postSession('login', { username, password });
+      if (response.ok) {
+        if (form.elements.password) form.elements.password.value = '';
+        setSignedIn(true);
+      } else if (response.status === 401) {
+        setError('denied');
+      } else if (response.status === 429) {
+        setError('tooManyAttempts');
+      } else {
+        setError('denied');
+      }
     } catch {
       setError('unavailable');
     } finally {
