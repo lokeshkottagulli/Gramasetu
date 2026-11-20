@@ -35,11 +35,6 @@ function App({ guide }) {
     if (!scene) return;
     const hero = scene.parentElement;
 
-    // Fixed stationary position for the bus on the hero road (no movement on scroll)
-    scene.style.setProperty('--bus-x', '54%');
-    scene.style.setProperty('--bus-y', '80%');
-    scene.style.setProperty('--bus-size', '30%');
-
     const resize = new ResizeObserver(() => {
       scene.style.width = `${Math.max(hero.clientWidth, hero.clientHeight * (16 / 9))}px`;
     });

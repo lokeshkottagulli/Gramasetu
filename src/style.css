@@ -109,11 +109,71 @@ nav { display: flex; align-items: center; gap: 3px; margin-left: auto; }
 }
 .hero-bus {
   position: absolute;
-  top: var(--bus-y, 80%);
-  left: var(--bus-x, 54%);
-  width: var(--bus-size, 30%);
+  top: 72%;
+  left: 65%;
+  width: 21%;
   transform: translate(-50%, -100%);
   filter: drop-shadow(0 9px 6px #10141188);
+  animation: hero-bus-drive-forward 15s ease-in-out infinite;
+  will-change: left, top, width, transform, opacity;
+}
+
+@keyframes hero-bus-drive-forward {
+  0% {
+    left: 65%;
+    top: 72%;
+    width: 21%;
+    opacity: 0;
+    transform: translate(-50%, -100%) translateY(0);
+  }
+  6% {
+    opacity: 1;
+  }
+  25% {
+    left: 60.5%;
+    top: 76.2%;
+    width: 26.5%;
+    transform: translate(-50%, -100%) translateY(-1.5px);
+  }
+  50% {
+    left: 54.5%;
+    top: 80.5%;
+    width: 32.5%;
+    transform: translate(-50%, -100%) translateY(0);
+  }
+  75% {
+    left: 48%;
+    top: 84.8%;
+    width: 38.5%;
+    transform: translate(-50%, -100%) translateY(-1.5px);
+  }
+  92% {
+    left: 42.4%;
+    top: 88.2%;
+    width: 43%;
+    opacity: 1;
+    transform: translate(-50%, -100%) translateY(0);
+  }
+  98% {
+    opacity: 0;
+  }
+  100% {
+    left: 40%;
+    top: 89.5%;
+    width: 44.5%;
+    opacity: 0;
+    transform: translate(-50%, -100%) translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-bus {
+    animation: none;
+    left: 54%;
+    top: 80%;
+    width: 31%;
+    opacity: 1;
+  }
 }
 .hero-grid {
   min-height: 610px;
