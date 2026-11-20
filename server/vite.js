@@ -1,3 +1,4 @@
+import './load-env.js';
 import { createServer, preview } from 'vite';
 import { handleApi } from './api.js';
 

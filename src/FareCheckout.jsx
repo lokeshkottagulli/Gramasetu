@@ -348,6 +348,13 @@ export default function FareCheckout({ routes, initialTrip, language }) {
                 </>
               )}
               {error === 'razorpayLoadFailed' && <p role="alert">{text.razorpayLoadFailed}</p>}
+              {razorpayTest && (
+                <div className="checkout-actions checkout-demo" style={{ marginTop: '12px' }}>
+                  <button className="outline" type="button" disabled={busy} onClick={() => checkPayment(order, { testStatus: 'paid' })}>
+                    {text.demoPaid}
+                  </button>
+                </div>
+              )}
               {showDemo && demo && (
                 <div className="checkout-actions checkout-demo">
                   <button className="outline" type="button" disabled={busy} onClick={() => checkPayment(order, { testStatus: 'paid' })}>{text.demoPaid}</button>
