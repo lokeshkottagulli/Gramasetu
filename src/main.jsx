@@ -34,34 +34,18 @@ function App({ guide }) {
     const scene = heroScene.current;
     if (!scene) return;
     const hero = scene.parentElement;
-    const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    let frame = null;
 
-    const positionBus = () => {
-      frame = null;
-      const progress = motion.matches ? 0.45 : Math.min(1, Math.max(0, window.scrollY / (hero.offsetHeight * 0.44)));
-      scene.style.setProperty('--bus-x', `${65 - 24 * progress ** 1.2}%`);
-      scene.style.setProperty('--bus-y', `${72 + 17 * progress}%`);
-      scene.style.setProperty('--bus-size', `${21 + 23 * progress}%`);
+    // Fixed stationary position for the bus on the hero road (no movement on scroll)
+    scene.style.setProperty('--bus-x', '54%');
+    scene.style.setProperty('--bus-y', '80%');
+    scene.style.setProperty('--bus-size', '30%');
 
-    };
-    const schedulePosition = () => {
-      if (frame === null) frame = window.requestAnimationFrame(positionBus);
-    };
-
-    positionBus();
-    window.addEventListener('scroll', schedulePosition, { passive: true });
-    motion.addEventListener('change', schedulePosition);
     const resize = new ResizeObserver(() => {
       scene.style.width = `${Math.max(hero.clientWidth, hero.clientHeight * (16 / 9))}px`;
-      schedulePosition();
     });
     resize.observe(hero);
     return () => {
-      window.removeEventListener('scroll', schedulePosition);
-      motion.removeEventListener('change', schedulePosition);
       resize.disconnect();
-      if (frame !== null) window.cancelAnimationFrame(frame);
     };
   }, [page]);
 

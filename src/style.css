@@ -109,9 +109,9 @@ nav { display: flex; align-items: center; gap: 3px; margin-left: auto; }
 }
 .hero-bus {
   position: absolute;
-  top: var(--bus-y, 72%);
-  left: var(--bus-x, 65%);
-  width: var(--bus-size, 21%);
+  top: var(--bus-y, 80%);
+  left: var(--bus-x, 54%);
+  width: var(--bus-size, 30%);
   transform: translate(-50%, -100%);
   filter: drop-shadow(0 9px 6px #10141188);
 }
